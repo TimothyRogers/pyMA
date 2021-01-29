@@ -26,6 +26,7 @@ def test_spatial_model():
     # Undamped Modal
     model = systems.SpatialModel(M=M,C=None,K=K)
     modal = model.as_modal()
+    model.update_modal()
 
     assert(np.isclose(np.sort(modal.Omega**2),np.sort([10,30])).all())
     assert(np.isclose(modal.Phi/modal.Phi[0,:],np.array([[1,1],[-1,1]])).all()) 
@@ -33,6 +34,11 @@ def test_spatial_model():
     # Damped Modal
     model = systems.SpatialModel(M=M,C=C,K=K)
     modal = model.as_modal()
+    model.update_modal()
+
+    assert((model.wn == modal.Omega).all())
+    assert((model.zeta == modal.Zeta).all())
+    assert(np.isclose(model.Phi/model.Phi[0,:],modal.Phi/modal.Phi[0,:]).all())
 
     assert(np.isclose(np.sort(modal.Omega**2),np.sort([10,30])).all())
     assert(np.isclose(modal.Phi/modal.Phi[0,:],np.array([[1,1],[-1,1]])).all())

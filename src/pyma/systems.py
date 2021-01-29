@@ -19,6 +19,11 @@ class SpatialModel(DynamicSystem):
     def __init__(self,M=None, C=None, K=None):
         
         self.dofs = None
+        self._M = None
+        self._C = None
+        self._K = None
+
+
         self.M = M
         self.C = C
         self.K = K
@@ -40,6 +45,7 @@ class SpatialModel(DynamicSystem):
     def M(self,M):
         self.dofs_update(M)
         self._M = M
+        self.update_modal()
 
     @property
     def C(self):
@@ -51,6 +57,7 @@ class SpatialModel(DynamicSystem):
     def C(self,C):
         self.dofs_update(C)
         self._C = C
+        self.update_modal()
 
     @property
     def K(self):
@@ -62,6 +69,7 @@ class SpatialModel(DynamicSystem):
     def K(self,K):
         self.dofs_update(K)
         self._K = K
+        self.update_modal()
 
     def first_order_form(self):
         MI = inv(self.M)
@@ -69,6 +77,22 @@ class SpatialModel(DynamicSystem):
         top = np.eye(self.dofs,self.dofs*2,self.dofs)
         return np.vstack((top,bottom))
 
+    def update_modal(self):
+        # Compute modal properties
+        if self.M is not None and self.K is not None:
+            lam_ud, phi = eig(inv(self.M)@self.K)
+            if self.C is not None:
+                lam, _ = eig(self.first_order_form())
+                self.wn = np.abs(lam[::2])
+                self.zeta = -np.real(lam[::2])/self.wn
+            else:
+                self.wn = lam_ud
+                self.zeta = np.zeros_like(lam_ud)
+            self.Phi = phi
+        else:
+            self.wn = None
+            self.zeta = None
+            self.Phi = None
 
     def as_modal(self):
 
@@ -83,9 +107,6 @@ class SpatialModel(DynamicSystem):
             ms = np.real(lam*phi[:self.dofs,::2])
             return ModalModel(Omega=np.abs(lam), Phi=ms, Zeta=(-np.real(lam)/np.abs(lam)))
         
-
-    
-
 
 class ModalModel(DynamicSystem):
     '''
