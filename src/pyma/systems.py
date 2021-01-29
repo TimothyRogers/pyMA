@@ -35,6 +35,7 @@ class SpatialModel(DynamicSystem):
         return self._M
     
     @M.setter
+    @utils.num_to_np
     @utils.valid_system_matrix
     def M(self,M):
         self.dofs_update(M)
@@ -45,6 +46,7 @@ class SpatialModel(DynamicSystem):
         return self._C
     
     @C.setter
+    @utils.num_to_np
     @utils.valid_system_matrix
     def C(self,C):
         self.dofs_update(C)
@@ -55,6 +57,7 @@ class SpatialModel(DynamicSystem):
         return self._K
     
     @K.setter
+    @utils.num_to_np
     @utils.valid_system_matrix
     def K(self,K):
         self.dofs_update(K)
@@ -63,9 +66,8 @@ class SpatialModel(DynamicSystem):
     def first_order_form(self):
         MI = inv(self.M)
         bottom = np.hstack((-MI@self.K, -MI@self.C))
-        top = np.eye(2,4,2)
+        top = np.eye(self.dofs,self.dofs*2,self.dofs)
         return np.vstack((top,bottom))
-
 
 
     def as_modal(self):

@@ -45,3 +45,14 @@ def test_is_pos_def():
     with pytest.raises(ValueError):
         dummy(None,B)
 
+def test_num_to_np():
+    
+    @utils.num_to_np
+    def dummy(self,a,b=None):
+        return a, b
+
+    a, b = dummy(None,1,b=2)
+
+    assert(len(a.shape) == 2 and a.shape[0] == 1 and a.shape[1] == 1)
+    assert(len(b.shape) == 2 and b.shape[0] == 1 and b.shape[1] == 1)
+

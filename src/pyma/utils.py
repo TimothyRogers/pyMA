@@ -4,6 +4,20 @@ Utilities
 
 import numpy as np
 
+def num_to_np(func):
+    # Decorator that makes all number inputs 2D arrays
+    def wrapper(*args, **kwargs):
+        args = list(args)
+        for i,a in enumerate(args):
+            if isinstance(a, int) or isinstance(a, float):
+                args[i] = np.array([a])[:,None]
+        args = tuple(args)
+        for key, val in kwargs.items():
+            if isinstance(val, int) or isinstance(val, float):
+                kwargs[key] = np.array([val])[:,None]
+        return func(*args, **kwargs)
+    return wrapper
+
 def is_square(func):
     def wrapper(*args,**kwargs):
         if args[1] is None or (len(args[1].shape) == 2 and args[1].shape[0] == args[1].shape[1]):
