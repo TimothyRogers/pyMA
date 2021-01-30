@@ -98,14 +98,9 @@ class SpatialModel(DynamicSystem):
 
         if self.C is None:
             # Undamped system
-            lam, phi = eig(inv(self.M)@self.K)
-            return ModalModel(Omega=np.sqrt(lam),Phi=phi)
+            return ModalModel(Omega=self.wn,Phi=self.Phi)
         else:
-            MI = inv(self.M)
-            lam, phi = eig(self.first_order_form())
-            lam = lam[::2]
-            ms = np.real(lam*phi[:self.dofs,::2])
-            return ModalModel(Omega=np.abs(lam), Phi=ms, Zeta=(-np.real(lam)/np.abs(lam)))
+            return ModalModel(Omega=self.wn, Phi=self.Phi, Zeta=self.zeta)
         
 
 class ModalModel(DynamicSystem):
