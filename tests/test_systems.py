@@ -66,6 +66,7 @@ def test_frf():
     w = np.linspace(0,1.2*wn.max(),1024)
 
     model = systems.SpatialModel(M=M,C=C,K=K)
+    frf = model.frf(J=1,K=0)
     frf = model.frf()
 
     frf_test = np.zeros((2,2,1024),dtype=np.clongdouble)
