@@ -3,6 +3,8 @@ Testing Systems
 '''
 import pytest
 import numpy as np
+import matplotlib.pyplot as plt
+plt.switch_backend('Qt5Agg')
 
 from pyma import systems
 
@@ -45,4 +47,35 @@ def test_spatial_model():
 
     model = systems.SpatialModel(M=1,C=20,K=1e4)
     model.as_modal()
+
+
+def test_frf():
+    
+    M = np.eye(2)
+    K = np.array([[20, -10],[-10, 20]])
+    C = 0.05*M + 0.001*K
+
+    wn, phi = np.linalg.eig(np.linalg.inv(M)@K)
+    wn = np.sqrt(wn)
+    Mrr = np.diag(phi.T @ (M @ phi))
+    phi = phi/Mrr
+    Krr = np.diag(phi.T @ (K @ phi))
+    Crr = np.diag(phi.T @ (C @ phi))
+    
+
+    w = np.linspace(0,1.2*wn.max(),1024)
+
+    model = systems.SpatialModel(M=M,C=C,K=K)
+    frf = model.frf()
+
+    frf_test = np.zeros((2,2,1024),dtype=np.clongdouble)
+
+
+    for j in range(2):
+        for k in range(2):
+            for d in range(2):
+                frf_test[j,k,:] = frf_test[j,k,:] + (phi[d,j] * phi[d,k]) / (Krr[d] - (w**2)*Mrr[d] + 1j*w*Crr[d])
+    
+    assert(np.allclose(frf_test,frf))
+
 
