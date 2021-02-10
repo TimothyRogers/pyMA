@@ -5,12 +5,55 @@ Representations of Dynamic Systems
 from pyma import utils
 import numpy as np
 from numpy.linalg import eig, inv
+from scipy.linalg import expm
 import itertools
 
 class DynamicSystem():
     '''
     Base Class for Dynamic Systems
     '''
+
+    def frf(self,w=None,J=-1,K=-1):
+        '''
+        Compute complex receptance FRF
+
+        Response at k due to excitation at j: -1 implies all
+        Frequencies specified in w
+
+        '''
+
+        if J == -1:
+            J = np.arange(0,self.dofs)
+
+        if K == -1:
+            K = np.arange(0,self.dofs)
+
+        if w == None:
+            w = np.linspace(0,1.2*self.Omega.max(),1024)
+
+        if isinstance(J,int):
+            J = [J-1]
+
+        if isinstance(K,int):
+            K = [K-1]
+
+        FRF = np.empty((len(J),len(K),len(w)),dtype=np.clongdouble)
+
+        for a in J:
+            for b in K:
+                FRF[a,b] = self._frf(a,b,w)
+
+        return FRF
+
+    def _frf(self,jj,kk,w):
+
+        frf = np.zeros(len(w),dtype=np.clongdouble)
+        for r in range(self.dofs):
+            rAjk = self.Phi[r,jj] * self.Phi[r,kk]
+            den =  self.Omega[r]**2 - w**2 + 1j*2*self.Zeta[r]*self.Omega[r]*w
+            frf = frf + rAjk/den
+        return frf
+
 
 class SpatialModel(DynamicSystem):
     '''
@@ -87,65 +130,25 @@ class SpatialModel(DynamicSystem):
             phi = phi/np.diag(Mrr)
             if self.C is not None:
                 lam, _ = eig(self.first_order_form())
-                self.wn = np.abs(lam[::2])
-                self.zeta = -np.real(lam[::2])/self.wn
+                self.Omega = np.abs(lam[::2])
+                self.Zeta = -np.real(lam[::2])/self.Omega
             else:
-                self.wn = np.sqrt(lam_ud)
-                self.zeta = np.zeros_like(lam_ud)
+                self.Omega = np.sqrt(lam_ud)
+                self.Zeta = np.zeros_like(lam_ud)
             self.Phi = phi
         else:
-            self.wn = None
-            self.zeta = None
+            self.Omega = None
+            self.Zeta = None
             self.Phi = None
 
-    def frf(self,w=None,J=-1,K=-1):
-        '''
-        Compute complex receptance FRF
-
-        Response at k due to excitation at j: -1 implies all
-        Frequencies specified in w
-
-        '''
-
-        if J == -1:
-            J = np.arange(0,self.dofs)
-
-        if K == -1:
-            K = np.arange(0,self.dofs)
-
-        if w == None:
-            w = np.linspace(0,1.2*self.wn.max(),1024)
-
-        if isinstance(J,int):
-            J = [J-1]
-
-        if isinstance(K,int):
-            K = [K-1]
-
-        FRF = np.empty((len(J),len(K),len(w)),dtype=np.clongdouble)
-
-        for a in J:
-            for b in K:
-                FRF[a,b] = self._frf(a,b,w)
-
-        return FRF
-
-    def _frf(self,jj,kk,w):
-
-        frf = np.zeros(len(w),dtype=np.clongdouble)
-        for r in range(self.dofs):
-            rAjk = self.Phi[r,jj] * self.Phi[r,kk]
-            den =  self.wn[r]**2 - w**2 + 1j*2*self.zeta[r]*self.wn[r]*w
-            frf = frf + rAjk/den
-        return frf
-
+    
     def as_modal(self):
 
         if self.C is None:
             # Undamped system
-            return ModalModel(Omega=self.wn,Phi=self.Phi)
+            return ModalModel(Omega=self.Omega,Phi=self.Phi)
         else:
-            return ModalModel(Omega=self.wn, Phi=self.Phi, Zeta=self.zeta)
+            return ModalModel(Omega=self.Omega, Phi=self.Phi, Zeta=self.Zeta)
         
 
 class ModalModel(DynamicSystem):

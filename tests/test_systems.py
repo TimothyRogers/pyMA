@@ -36,8 +36,8 @@ def test_spatial_model():
     modal = model.as_modal()
     model.update_modal()
 
-    assert((model.wn == modal.Omega).all())
-    assert((model.zeta == modal.Zeta).all())
+    assert((model.Omega == modal.Omega).all())
+    assert((model.Zeta == modal.Zeta).all())
     assert(np.isclose(model.Phi/model.Phi[0,:],modal.Phi/modal.Phi[0,:]).all())
 
     assert(np.isclose(np.sort(modal.Omega**2),np.sort([10,30])).all())
