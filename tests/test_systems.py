@@ -3,8 +3,6 @@ Testing Systems
 '''
 import pytest
 import numpy as np
-import matplotlib.pyplot as plt
-plt.switch_backend('Qt5Agg')
 
 from pyma import systems
 
