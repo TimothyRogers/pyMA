@@ -161,3 +161,56 @@ class ModalModel(DynamicSystem):
         self.Omega = Omega
         self.Phi = Phi
         self.Zeta = Zeta
+
+
+class StateSpace(DynamicSystem):
+    '''
+    Dynamic system as a linear Gaussian SSM
+
+    If continuous is True:
+        A is continuous time transition matrix
+        B is continuous time control matrix
+        C is observation matrix
+        D is shoot through matrix
+        Q is L*q*L' where q is white noise spectral density
+        R is measurement noise covariance
+
+    Else:
+        A is discrete time transition matrix
+        B is discrete time control matrix
+        C is observation matrix
+        D is shoot through matrix
+        Q is process noise covariance
+        R is measurement noise covariance
+
+    dt - sample time default 1 Hz
+
+    '''
+
+    def __init__(self, A=None, B=None, C=None, D=None, Q=None, R=None, continuous=True, dt=1):
+        #self.__dict__.update(kwargs) # Set kwargs as instance attributes
+        pass
+
+
+    def frf(self,w=None,J=None,K=None):
+        # Need to add conversion here
+        raise NotImplementedError()
+
+    def discretise(self):
+
+        if self.continuous:
+
+            # Using a matrix fraction decomposition to discretize
+            Phi = expm(self.dt*np.block([
+                [self.A,           self.Q  ],
+                [np.zeros((2,2)), -self.A.T]
+            ]))
+            A = Phi[0:self._Dx,0:self._Dx]
+            Q = Phi[0:self._Dx,self._Dx+1:] @ A.T
+            if self.B is not None:
+                B = inv(self.A) @ (A-np.eye(2)) @ self.B
+                self.B = B
+            
+            self.A = A
+            self.Q = Q
+
