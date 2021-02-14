@@ -6,6 +6,7 @@ import numpy as np
 import scipy as sp
 
 from pyma import systems
+from pyma import utils
 
 def test_spatial_model():
 
@@ -125,4 +126,18 @@ def test_ssm():
 
     ssm.discretise()
     np.random.seed(1)
+    with pytest.raises(utils.SimulationError):
+        ssm.simulate()
     x, y = ssm.simulate(T=3e4)
+
+    t = np.arange(0,10,dt)
+    u = np.block([[np.zeros((1,len(t)))],[np.sin(15*2*np.pi*t)]])
+    x, y = ssm.simulate(u=u)
+    x, y = ssm.simulate(u=u, T=100)
+
+    x0 = 10*np.ones(4)
+    x, y = ssm.simulate(x0=x0,T=1e4)
+
+    # Eventually we should handle lists as inputs instead of np.ndarrays
+    with pytest.raises(ValueError):
+        ssm.simulate(u=[1]*100)

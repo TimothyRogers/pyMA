@@ -310,6 +310,8 @@ class StateSpace(DynamicSystem):
 
         '''
 
+        #TODO: input dimension checking and handling unexpected types for u
+
         T = int(T) if T is not None else T
 
         Du = self._Du if self._Du != 0 else 1
@@ -319,7 +321,11 @@ class StateSpace(DynamicSystem):
             u = np.zeros((Du,T+1))
         else:
             if T is None:
-                T = len(u)
+                if isinstance(u,np.ndarray):
+                    # First input has to be x0 input
+                    T = u.shape[1]-1
+                else:
+                    raise ValueError
 
         
         # x is array from t=0 to t=T
