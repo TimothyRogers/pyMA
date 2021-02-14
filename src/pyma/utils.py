@@ -91,4 +91,14 @@ def valid_system_matrix(func):
        return func(*args, **kwargs)
     return wrapper
 
+#%%
+
+'''
+Errors
+'''
+
+class SimulationError(Exception):
+
+    def __init__(self, msg):
+        self.message = msg
 

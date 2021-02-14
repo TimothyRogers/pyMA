@@ -93,13 +93,15 @@ def test_ssm():
     C = np.hstack((-MI@K,-MI@C))
     D = MI
 
-    dt = 1e-3 # 1000Hz sample freq
+    dt = 1e-2 # 1000Hz sample freq
 
     # Deterministic SSM
-    ssm = systems.StateSpace(A=A, B=B, C=C, D=D, dt=1e-3)
+    ssm = systems.StateSpace(A=A, B=B, C=C, D=D, dt=dt)
 
     with pytest.raises(NotImplementedError):
         ssm.frf()
+
+    x, y = ssm.simulate(T=2000)
 
     assert( (ssm.A == A).all())
     assert( (ssm.B == B).all())
@@ -118,7 +120,9 @@ def test_ssm():
     L = np.flipud(np.eye(4,2))
     q = np.eye(2)
     Q = L @ (q @ L.T)
-    R = 1
-    ssm = systems.StateSpace(A=A, B=B, C=C, D=D, Q=Q, R=R, dt=1e-3)
+    R = np.eye(2)
+    ssm = systems.StateSpace(A=A, B=B, C=C, D=D, Q=Q, R=R, dt=dt)
 
     ssm.discretise()
+    np.random.seed(1)
+    x, y = ssm.simulate(T=3e4)

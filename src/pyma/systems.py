@@ -243,6 +243,25 @@ class StateSpace(DynamicSystem):
     def D(self,D):
         self._D = D
 
+    @property
+    def R(self):
+        return self._R
+
+    @R.setter
+    @utils.num_to_np
+    @utils.verify_dims('Dy','Dy')
+    def R(self,R):
+        self._R = R
+
+    @property
+    def Q(self):
+        return self._Q
+
+    @Q.setter
+    @utils.num_to_np
+    @utils.verify_dims('Dx','Dx')
+    def Q(self,Q):
+        self._Q = Q
 
     def frf(self,w=None,J=None,K=None):
         # Need to add conversion here
@@ -282,3 +301,52 @@ class StateSpace(DynamicSystem):
                 self.A = A
                 self.continuous = False
 
+    def simulate(self, u=None, T=None, x0=None):
+        '''
+        Simulate response of a dynamic system
+
+        u - input signal
+        T - number of time steps
+
+        '''
+
+        T = int(T) if T is not None else T
+
+        Du = self._Du if self._Du != 0 else 1
+        if u is None:
+            if T is None:
+                raise utils.SimulationError('Zero time steps in simulation.')
+            u = np.zeros((Du,T+1))
+        else:
+            if T is None:
+                T = len(u)
+
+        
+        # x is array from t=0 to t=T
+        x = np.empty((self._Dx,T+1))
+        if x0 is None:
+            x[:,0] = np.zeros(self._Dx)
+        else:   
+            x[:,0] = x0
+
+        # y0 is nan
+        y = np.empty((self._Dy,T+1))
+        y[:,0] = np.nan
+
+        # Unpack arrays and deal with inputs etc
+        A = self.A
+        B = self.B if self.B is not None else np.zeros((self._Dx,Du))
+        C = self.C
+        D = self.D if self.D is not None else np.zeros((self._Dy,Du))
+
+        # Lower cholesky of noises
+        LQ = np.linalg.cholesky(self.Q) if self.Q is not None else np.zeros((self._Dx,self._Dx))
+        LR = np.linalg.cholesky(self.R) if self.R is not None else np.zeros((self._Dy,self._Dy))
+
+        # Actual simulations
+        for tt in range(T):
+            x[:,tt+1] = A @ x[:,tt] + B @ u[:,tt] + LQ @ np.random.randn(self._Dx)
+            y[:,tt+1] = C @ x[:,tt+1] + D @ u[:,tt+1] + LR @ np.random.randn(self._Dy)
+        
+        return x, y
+        
