@@ -56,3 +56,49 @@ def test_num_to_np():
     assert(len(a.shape) == 2 and a.shape[0] == 1 and a.shape[1] == 1)
     assert(len(b.shape) == 2 and b.shape[0] == 1 and b.shape[1] == 1)
 
+def test_verify_dims():
+
+    @utils.verify_dims(1)
+    def dummy(self,a):
+        return a
+    
+    dummy(None,None)
+
+    assert(dummy(None,1) == 1)
+
+    @utils.verify_dims(2,2)
+    def dummy(self,a):
+        return a
+    
+    A = np.ones((2,2))
+    B = np.ones((2,3))
+    C = np.ones((2,2,2))
+
+    assert((dummy(None,A) == A).all())
+
+    with pytest.raises(ValueError):
+        dummy(None,B)
+
+    with pytest.raises(ValueError):
+        dummy(None,C)
+
+    class DummyClass():
+        
+        def __init__(self):
+            self._Dx = 2
+            self._Dy = 0
+
+    @utils.verify_dims('Dx','Dx')
+    def dummy(self,a):
+        return a
+
+    assert((dummy(DummyClass(),A) == A).all())
+
+    @utils.verify_dims('Dy','Dy')
+    def dummy(self,a):
+        return a
+
+    D = DummyClass()
+
+    assert((dummy(D,A) == A).all())
+    assert(D._Dy == 2)

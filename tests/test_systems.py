@@ -3,6 +3,7 @@ Testing Systems
 '''
 import pytest
 import numpy as np
+import scipy as sp
 
 from pyma import systems
 
@@ -78,3 +79,46 @@ def test_frf():
     assert(np.allclose(frf_test,frf))
 
 
+def test_ssm():
+
+    M = np.eye(2)
+    MI = np.linalg.inv(M)
+    K = np.array([[20, -10],[-10, 20]])
+    C = 0.05*M + 0.001*K
+
+    model = systems.SpatialModel(M=M,C=C,K=K)
+
+    A = model.first_order_form()
+    B = np.block([[np.zeros_like(M)],[np.linalg.inv(M)]])
+    C = np.hstack((-MI@K,-MI@C))
+    D = MI
+
+    dt = 1e-3 # 1000Hz sample freq
+
+    # Deterministic SSM
+    ssm = systems.StateSpace(A=A, B=B, C=C, D=D, dt=1e-3)
+
+    with pytest.raises(NotImplementedError):
+        ssm.frf()
+
+    assert( (ssm.A == A).all())
+    assert( (ssm.B == B).all())
+    assert( (ssm.C == C).all())
+    assert( (ssm.D == D).all())
+
+    ssm.discretise()
+
+    assert( (ssm.A == sp.linalg.expm(dt*A)).all() )
+
+    # Check eigenvalues are preserved in discretisation
+    assert( np.allclose(np.linalg.eig(A)[0], np.log(np.linalg.eig(ssm.A)[0]) / dt) )
+
+
+    # Stochastic SSM
+    L = np.flipud(np.eye(4,2))
+    q = np.eye(2)
+    Q = L @ (q @ L.T)
+    R = 1
+    ssm = systems.StateSpace(A=A, B=B, C=C, D=D, Q=Q, R=R, dt=1e-3)
+
+    ssm.discretise()

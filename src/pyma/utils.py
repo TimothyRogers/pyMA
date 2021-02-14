@@ -34,6 +34,47 @@ def is_symmetric(func):
             raise ValueError
     return wrapper
 
+
+def verify_dims(*dargs):
+    # Makes sure matrices get set at the right dimensions
+    def wrapper(func):
+        def wrapped_func(*args,**kwargs):
+            
+            # Dynamically get dims if strings
+            dims = [ getattr(args[0],'_'+d) if isinstance(d,str) else d for d in dargs]
+
+            if isinstance(args[1],np.ndarray):
+                arg_dims = args[1].shape
+            elif (isinstance(args[1],int) or isinstance(args[1],float)):
+                arg_dims = [1]
+            else:
+                ValueError
+
+            # Update zero dims
+            for i,d in enumerate(dims):
+                if d == 0:
+                    dims[i] = arg_dims[i]
+                    if isinstance(dargs[i],str):
+                        setattr(args[0],'_'+dargs[i],arg_dims[i]) 
+
+            # Verifying the dims
+            if args[1] is None:
+                return func(*args, **kwargs)
+            elif isinstance(args[1],np.ndarray) and \
+                (len(args[1].shape) == len(dims) and \
+                    all([ d1 == d2 for d1,d2 in zip(args[1].shape,dims)])):
+                return func(*args, **kwargs)
+            elif (isinstance(args[1], int) or isinstance(args[1], float)) and len(dims) == 1 and dims[0] == 1:
+                return func(*args, **kwargs)
+            else:
+                raise ValueError
+            
+            
+
+        return wrapped_func
+    return wrapper
+
+
 def is_positive_definite(func):
     def wrapper(*args,**kwargs):
         if args[1] is None or np.all(np.linalg.eigvals(args[1]) > 0):

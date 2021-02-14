@@ -117,9 +117,7 @@ class SpatialModel(DynamicSystem):
 
     def first_order_form(self):
         MI = inv(self.M)
-        bottom = np.hstack((-MI@self.K, -MI@self.C))
-        top = np.eye(self.dofs,self.dofs*2,self.dofs)
-        return np.vstack((top,bottom))
+        return np.block([[np.eye(self.dofs,self.dofs*2,self.dofs)],[-MI@self.K, -MI@self.C]])
 
     def update_modal(self):
         # Compute modal properties
@@ -188,8 +186,62 @@ class StateSpace(DynamicSystem):
     '''
 
     def __init__(self, A=None, B=None, C=None, D=None, Q=None, R=None, continuous=True, dt=1):
-        #self.__dict__.update(kwargs) # Set kwargs as instance attributes
-        pass
+        
+        self._A = None
+        self._B = None
+        self._C = None
+        self._D = None
+        self._Q = None
+        self._R = None
+        self._Dx = 0
+        self._Du = 0
+        self._Dy = 0
+
+        self.A = A
+        self.B = B
+        self.C = C
+        self.D = D
+        self.Q = Q
+        self.R = R
+        
+        self.continuous = continuous
+        self.dt = dt
+
+    @property
+    def A(self):
+        return self._A
+        
+    @A.setter
+    @utils.verify_dims('Dx','Dx')
+    def A(self,A):
+        self._A = A
+
+    @property
+    def B(self):
+        return self._B
+        
+    @B.setter
+    @utils.verify_dims('Dx','Du')
+    def B(self,B):
+        self._B = B
+
+    @property
+    def C(self):
+        return self._C
+        
+    @C.setter
+    @utils.verify_dims('Dy','Dx')
+    def C(self,C):
+        self._C = C
+
+    @property
+    def D(self):
+        return self._D
+        
+    @D.setter
+    @utils.verify_dims('Dy','Du')
+    def D(self,D):
+        self._D = D
 
 
     def frf(self,w=None,J=None,K=None):
@@ -197,20 +249,36 @@ class StateSpace(DynamicSystem):
         raise NotImplementedError()
 
     def discretise(self):
+        '''
+        Discretise continuous time SSM usins matrix fractions
+        '''
 
         if self.continuous:
 
-            # Using a matrix fraction decomposition to discretize
-            Phi = expm(self.dt*np.block([
-                [self.A,           self.Q  ],
-                [np.zeros((2,2)), -self.A.T]
-            ]))
-            A = Phi[0:self._Dx,0:self._Dx]
-            Q = Phi[0:self._Dx,self._Dx+1:] @ A.T
-            if self.B is not None:
-                B = inv(self.A) @ (A-np.eye(2)) @ self.B
-                self.B = B
-            
-            self.A = A
-            self.Q = Q
+            if self.Q is not None:
+                # Stochastic case
+                # Using a matrix fraction decomposition to discretize
+                # Note: self.Q must equal L*q*L'
+                Phi = expm(self.dt*np.block([
+                    [self.A,                         self.Q  ],
+                    [np.zeros((self._Dx,self._Dx)), -self.A.T]
+                ]))
+                A = Phi[0:self._Dx,0:self._Dx]
+                Q = Phi[0:self._Dx,self._Dx:] @ A.T
+                if self.B is not None:
+                    B = inv(self.A) @ (A-np.eye(self._Dx)) @ self.B
+                    self.B = B
+                
+                self.A = A
+                self.Q = Q
+                self.continuous = False
+
+            else:
+                # Deterministic case
+                A = expm(self.dt*self.A)
+                if self.B is not None:
+                    B = inv(self.A) @ (A-np.eye(self._Dx)) @ self.B
+                    self.B = B
+                self.A = A
+                self.continuous = False
 
