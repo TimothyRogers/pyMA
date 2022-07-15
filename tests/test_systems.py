@@ -8,11 +8,18 @@ import scipy as sp
 from pyma import systems
 from pyma import utils
 
-def test_spatial_model():
-
+@pytest.fixture
+def default_system():
+    
     M = np.eye(2)
     K = np.array([[20, -10],[-10, 20]])
     C = 0.05*M + 0.001*K
+
+    return M, C, K
+
+def test_spatial_model(default_system):
+
+    M, C, K = default_system
 
     model = systems.SpatialModel(M=M,C=C,K=K)
 
@@ -49,11 +56,9 @@ def test_spatial_model():
     model.as_modal()
 
 
-def test_frf():
+def test_frf(default_system):
     
-    M = np.eye(2)
-    K = np.array([[20, -10],[-10, 20]])
-    C = 0.05*M + 0.001*K
+    M, C, K = default_system
 
     wn, phi = np.linalg.eig(np.linalg.inv(M)@K)
     wn = np.sqrt(wn)
@@ -62,7 +67,6 @@ def test_frf():
     Krr = np.diag(phi.T @ (K @ phi))
     Crr = np.diag(phi.T @ (C @ phi))
     
-
     w = np.linspace(0,1.2*wn.max(),1024)
 
     model = systems.SpatialModel(M=M,C=C,K=K)
@@ -80,13 +84,11 @@ def test_frf():
     assert(np.allclose(frf_test,frf))
 
 
-def test_ssm():
+def test_ssm(default_system):
 
-    M = np.eye(2)
+    M, C, K = default_system
+
     MI = np.linalg.inv(M)
-    K = np.array([[20, -10],[-10, 20]])
-    C = 0.05*M + 0.001*K
-
     model = systems.SpatialModel(M=M,C=C,K=K)
 
     A = model.first_order_form()
