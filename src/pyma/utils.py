@@ -1,8 +1,37 @@
+import numpy as np
+
 '''
 Utilities
 '''
 
-import numpy as np
+def block_hankel(X,order,N=None):
+    # Block hankel matrix order o
+
+    if N is None:
+        D,N = X.shape
+        N -= order
+    else:
+        D, _ = X.shape
+    H = np.empty((D*(order+1),N))
+
+    for o in range(order+1):
+        H[o*D:(o+1)*D,:] = X[:,o:N+o]
+
+    return H
+
+def generate_multisine(freqs,t):
+    # Generate a random phase multisine of frequencies in freqs
+
+    X = np.sin(freqs[0]*t + np.random.rand()*2*np.pi)
+    for f in freqs[1:]:
+        X += np.sin(f*t + np.random.rand()*2*np.pi)
+
+    return X
+
+
+'''
+Decorators
+'''
 
 def num_to_np(func):
     # Decorator that makes all number inputs 2D arrays
@@ -47,12 +76,14 @@ def verify_dims(*dargs):
                 arg_dims = args[1].shape
             elif (isinstance(args[1],int) or isinstance(args[1],float)):
                 arg_dims = [1]
+            elif args[1] is None:
+                arg_dims = None
             else:
-                ValueError
+                raise ValueError
 
             # Update zero dims
             for i,d in enumerate(dims):
-                if d == 0:
+                if d == 0 and arg_dims is not None:
                     dims[i] = arg_dims[i]
                     if isinstance(dargs[i],str):
                         setattr(args[0],'_'+dargs[i],arg_dims[i]) 
