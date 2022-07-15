@@ -13,6 +13,18 @@ class DynamicSystem():
     Base Class for Dynamic Systems
     '''
 
+    def __init__(self):
+
+        self.dofs = None
+        self._M = None
+        self._C = None
+        self._K = None
+
+        self.Omega = []
+        self.Phi = []
+        self.Zeta = []
+
+
     def frf(self,w=None,J=-1,K=-1):
         '''
         Compute complex receptance FRF
@@ -28,7 +40,7 @@ class DynamicSystem():
         if K == -1:
             K = np.arange(0,self.dofs)
 
-        if w == None:
+        if w is None:
             w = np.linspace(0,1.2*self.Omega.max(),1024)
 
         if isinstance(J,int):
@@ -128,6 +140,7 @@ class SpatialModel(DynamicSystem):
             phi = phi/np.diag(Mrr)
             if self.C is not None:
                 lam, _ = eig(self.first_order_form())
+                lam.sort()
                 self.Omega = np.abs(lam[::2])
                 self.Zeta = -np.real(lam[::2])/self.Omega
             else:
@@ -355,4 +368,3 @@ class StateSpace(DynamicSystem):
             y[:,tt+1] = C @ x[:,tt+1] + D @ u[:,tt+1] + LR @ np.random.randn(self._Dy)
         
         return x, y
-        
