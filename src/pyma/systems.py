@@ -1,17 +1,19 @@
-'''
+"""
 Representations of Dynamic Systems
-'''
+"""
 
+from typing import Union
 from pyma import utils
 import numpy as np
 from numpy.linalg import eig, inv
 from scipy.linalg import expm
 import itertools
 
-class DynamicSystem():
-    '''
+
+class DynamicSystem:
+    """
     Base Class for Dynamic Systems
-    '''
+    """
 
     def __init__(self):
 
@@ -24,81 +26,88 @@ class DynamicSystem():
         self.Phi = []
         self.Zeta = []
 
-
-    def frf(self,w=None,J=-1,K=-1):
-        '''
+    def frf(
+        self,
+        w: np.ndarray = None,
+        J: Union[int, list, np.ndarray] = -1,
+        K: Union[int, list, np.ndarray] = -1,
+    ):
+        """
         Compute complex receptance FRF
 
         Response at k due to excitation at j: -1 implies all
         Frequencies specified in w
 
-        '''
+        """
 
         if J == -1:
-            J = np.arange(0,self.dofs)
+            J = np.arange(0, self.dofs)
 
         if K == -1:
-            K = np.arange(0,self.dofs)
+            K = np.arange(0, self.dofs)
 
         if w is None:
-            w = np.linspace(0,1.2*self.Omega.max(),1024)
+            w = np.linspace(0, 1.2 * self.Omega.max(), 1024)
 
-        if isinstance(J,int):
-            J = [J-1]
+        if isinstance(J, int):
+            J = [J - 1]
 
-        if isinstance(K,int):
-            K = [K-1]
+        if isinstance(K, int):
+            K = [K - 1]
 
-        FRF = np.empty((len(J),len(K),len(w)),dtype=np.clongdouble)
+        FRF = np.empty((len(J), len(K), len(w)), dtype=np.clongdouble)
 
         for a in J:
             for b in K:
-                FRF[a,b] = self._frf(a,b,w)
+                FRF[a, b] = self._frf(a, b, w)
 
         return FRF
 
-    def _frf(self,jj,kk,w):
+    def _frf(self, jj: int, kk: int, w: np.ndarray):
 
-        frf = np.zeros(len(w),dtype=np.clongdouble)
+        frf = np.zeros(len(w), dtype=np.clongdouble)
         for r in range(self.dofs):
-            rAjk = self.Phi[r,jj] * self.Phi[r,kk]
-            den =  self.Omega[r]**2 - w**2 + 1j*2*self.Zeta[r]*self.Omega[r]*w
-            frf = frf + rAjk/den
+            rAjk = self.Phi[r, jj] * self.Phi[r, kk]
+            den = (
+                self.Omega[r] ** 2 - w**2 + 1j * 2 * self.Zeta[r] * self.Omega[r] * w
+            )
+            frf = frf + rAjk / den
         return frf
 
 
 class SpatialModel(DynamicSystem):
-    '''
+    """
     Dynamic System in Spatial Coordinates - M, C, K
-    '''
+    """
 
-    def __init__(self,M=None, C=None, K=None):
-        
+    def __init__(
+        self, M: np.ndarray = None, C: np.ndarray = None, K: np.ndarray = None
+    ):
+
         self.dofs = None
         self._M = None
         self._C = None
         self._K = None
 
-
         self.M = M
         self.C = C
         self.K = K
 
-    def dofs_update(self,A):
+    def dofs_update(self, A: np.ndarray):
         if A is not None:
             if self.dofs == None or (A.shape[0] == self.dofs):
                 self.dofs = A.shape[0]
             else:
-                raise(ValueError)
+                raise (ValueError)
 
     @property
     def M(self):
         return self._M
-    
+
     @M.setter
     @utils.num_to_np
     @utils.valid_system_matrix
-    def M(self,M):
+    def M(self, M: np.ndarray):
         self.dofs_update(M)
         self._M = M
         self.update_modal()
@@ -106,11 +115,11 @@ class SpatialModel(DynamicSystem):
     @property
     def C(self):
         return self._C
-    
+
     @C.setter
     @utils.num_to_np
     @utils.valid_system_matrix
-    def C(self,C):
+    def C(self, C: np.ndarray):
         self.dofs_update(C)
         self._C = C
         self.update_modal()
@@ -118,31 +127,36 @@ class SpatialModel(DynamicSystem):
     @property
     def K(self):
         return self._K
-    
+
     @K.setter
     @utils.num_to_np
     @utils.valid_system_matrix
-    def K(self,K):
+    def K(self, K: np.ndarray):
         self.dofs_update(K)
         self._K = K
         self.update_modal()
 
     def first_order_form(self):
         MI = inv(self.M)
-        return np.block([[np.eye(self.dofs,self.dofs*2,self.dofs)],[-MI@self.K, -MI@self.C]])
+        return np.block(
+            [
+                [np.eye(self.dofs, self.dofs * 2, self.dofs)],
+                [-MI @ self.K, -MI @ self.C],
+            ]
+        )
 
     def update_modal(self):
         # Compute modal properties
         if self.M is not None and self.K is not None:
-            lam_ud, phi = eig(inv(self.M)@self.K)
+            lam_ud, phi = eig(inv(self.M) @ self.K)
             # Orthonormal modes
             Mrr = phi.T @ (self.M @ phi)
-            phi = phi/np.diag(Mrr)
+            phi = phi / np.diag(Mrr)
             if self.C is not None:
                 lam, _ = eig(self.first_order_form())
                 lam.sort()
                 self.Omega = np.abs(lam[::2])
-                self.Zeta = -np.real(lam[::2])/self.Omega
+                self.Zeta = -np.real(lam[::2]) / self.Omega
             else:
                 self.Omega = np.sqrt(lam_ud)
                 self.Zeta = np.zeros_like(lam_ud)
@@ -152,30 +166,31 @@ class SpatialModel(DynamicSystem):
             self.Zeta = None
             self.Phi = None
 
-    
     def as_modal(self):
 
         if self.C is None:
             # Undamped system
-            return ModalModel(Omega=self.Omega,Phi=self.Phi)
+            return ModalModel(Omega=self.Omega, Phi=self.Phi)
         else:
             return ModalModel(Omega=self.Omega, Phi=self.Phi, Zeta=self.Zeta)
-        
+
 
 class ModalModel(DynamicSystem):
-    '''
+    """
     Dynamic System in Modal Coordinates - Omega, Phi
-    '''
+    """
 
-    def __init__(self,Omega=None, Phi=None, Zeta=None):
-        
+    def __init__(
+        self, Omega: np.ndarray = None, Phi: np.ndarray = None, Zeta: np.ndarray = None
+    ):
+
         self.Omega = Omega
         self.Phi = Phi
         self.Zeta = Zeta
 
 
 class StateSpace(DynamicSystem):
-    '''
+    """
     Dynamic system as a linear Gaussian SSM
 
     If continuous is True:
@@ -196,10 +211,20 @@ class StateSpace(DynamicSystem):
 
     dt - sample time default 1 Hz
 
-    '''
+    """
 
-    def __init__(self, A=None, B=None, C=None, D=None, Q=None, R=None, continuous=True, dt=1):
-        
+    def __init__(
+        self,
+        A: np.ndarray = None,
+        B: np.ndarray = None,
+        C: np.ndarray = None,
+        D: np.ndarray = None,
+        Q: np.ndarray = None,
+        R: np.ndarray = None,
+        continuous: bool = True,
+        dt: float = 1.0,
+    ):
+
         self._A = None
         self._B = None
         self._C = None
@@ -216,44 +241,44 @@ class StateSpace(DynamicSystem):
         self.D = D
         self.Q = Q
         self.R = R
-        
+
         self.continuous = continuous
         self.dt = dt
 
     @property
     def A(self):
         return self._A
-        
+
     @A.setter
-    @utils.verify_dims('Dx','Dx')
-    def A(self,A):
+    @utils.verify_dims("Dx", "Dx")
+    def A(self, A: np.ndarray):
         self._A = A
 
     @property
     def B(self):
         return self._B
-        
+
     @B.setter
-    @utils.verify_dims('Dx','Du')
-    def B(self,B):
+    @utils.verify_dims("Dx", "Du")
+    def B(self, B: np.ndarray):
         self._B = B
 
     @property
     def C(self):
         return self._C
-        
+
     @C.setter
-    @utils.verify_dims('Dy','Dx')
-    def C(self,C):
+    @utils.verify_dims("Dy", "Dx")
+    def C(self, C: np.ndarray):
         self._C = C
 
     @property
     def D(self):
         return self._D
-        
+
     @D.setter
-    @utils.verify_dims('Dy','Du')
-    def D(self,D):
+    @utils.verify_dims("Dy", "Du")
+    def D(self, D: np.ndarray):
         self._D = D
 
     @property
@@ -262,8 +287,8 @@ class StateSpace(DynamicSystem):
 
     @R.setter
     @utils.num_to_np
-    @utils.verify_dims('Dy','Dy')
-    def R(self,R):
+    @utils.verify_dims("Dy", "Dy")
+    def R(self, R: np.ndarray):
         self._R = R
 
     @property
@@ -272,18 +297,18 @@ class StateSpace(DynamicSystem):
 
     @Q.setter
     @utils.num_to_np
-    @utils.verify_dims('Dx','Dx')
-    def Q(self,Q):
+    @utils.verify_dims("Dx", "Dx")
+    def Q(self, Q: np.ndarray):
         self._Q = Q
 
-    def frf(self,w=None,J=None,K=None):
+    def frf(self, w=None, J=None, K=None):
         # Need to add conversion here
         raise NotImplementedError()
 
     def discretise(self):
-        '''
+        """
         Discretise continuous time SSM usins matrix fractions
-        '''
+        """
 
         if self.continuous:
 
@@ -291,80 +316,91 @@ class StateSpace(DynamicSystem):
                 # Stochastic case
                 # Using a matrix fraction decomposition to discretize
                 # Note: self.Q must equal L*q*L'
-                Phi = expm(self.dt*np.block([
-                    [self.A,                         self.Q  ],
-                    [np.zeros((self._Dx,self._Dx)), -self.A.T]
-                ]))
-                A = Phi[0:self._Dx,0:self._Dx]
-                Q = Phi[0:self._Dx,self._Dx:] @ A.T
+                Phi = expm(
+                    self.dt
+                    * np.block(
+                        [[self.A, self.Q], [np.zeros((self._Dx, self._Dx)), -self.A.T]]
+                    )
+                )
+                A = Phi[0 : self._Dx, 0 : self._Dx]
+                Q = Phi[0 : self._Dx, self._Dx :] @ A.T
                 if self.B is not None:
-                    B = inv(self.A) @ (A-np.eye(self._Dx)) @ self.B
+                    B = inv(self.A) @ (A - np.eye(self._Dx)) @ self.B
                     self.B = B
-                
+
                 self.A = A
                 self.Q = Q
                 self.continuous = False
 
             else:
                 # Deterministic case
-                A = expm(self.dt*self.A)
+                A = expm(self.dt * self.A)
                 if self.B is not None:
-                    B = inv(self.A) @ (A-np.eye(self._Dx)) @ self.B
+                    B = inv(self.A) @ (A - np.eye(self._Dx)) @ self.B
                     self.B = B
                 self.A = A
                 self.continuous = False
 
-    def simulate(self, u=None, T=None, x0=None):
-        '''
+    def simulate(self, u: np.ndarray = None, T: int = None, x0: np.ndarray = None):
+        """
         Simulate response of a dynamic system
 
         u - input signal
         T - number of time steps
 
-        '''
+        """
 
-        #TODO: input dimension checking and handling unexpected types for u
+        # TODO: input dimension checking and handling unexpected types for u
 
         T = int(T) if T is not None else T
 
         Du = self._Du if self._Du != 0 else 1
         if u is None:
             if T is None:
-                raise utils.SimulationError('Zero time steps in simulation.')
-            u = np.zeros((Du,T+1))
+                raise utils.SimulationError("Zero time steps in simulation.")
+            u = np.zeros((Du, T + 1))
         else:
             if T is None:
-                if isinstance(u,np.ndarray):
+                if isinstance(u, np.ndarray):
                     # First input has to be x0 input
-                    T = u.shape[1]-1
+                    T = u.shape[1] - 1
                 else:
                     raise ValueError
 
-        
         # x is array from t=0 to t=T
-        x = np.empty((self._Dx,T+1))
+        x = np.empty((self._Dx, T + 1))
         if x0 is None:
-            x[:,0] = np.zeros(self._Dx)
-        else:   
-            x[:,0] = x0
+            x[:, 0] = np.zeros(self._Dx)
+        else:
+            x[:, 0] = x0
 
         # y0 is nan
-        y = np.empty((self._Dy,T+1))
-        y[:,0] = np.nan
+        y = np.empty((self._Dy, T + 1))
+        y[:, 0] = np.nan
 
         # Unpack arrays and deal with inputs etc
         A = self.A
-        B = self.B if self.B is not None else np.zeros((self._Dx,Du))
+        B = self.B if self.B is not None else np.zeros((self._Dx, Du))
         C = self.C
-        D = self.D if self.D is not None else np.zeros((self._Dy,Du))
+        D = self.D if self.D is not None else np.zeros((self._Dy, Du))
 
         # Lower cholesky of noises
-        LQ = np.linalg.cholesky(self.Q) if self.Q is not None else np.zeros((self._Dx,self._Dx))
-        LR = np.linalg.cholesky(self.R) if self.R is not None else np.zeros((self._Dy,self._Dy))
+        LQ = (
+            np.linalg.cholesky(self.Q)
+            if self.Q is not None
+            else np.zeros((self._Dx, self._Dx))
+        )
+        LR = (
+            np.linalg.cholesky(self.R)
+            if self.R is not None
+            else np.zeros((self._Dy, self._Dy))
+        )
 
         # Actual simulations
         for tt in range(T):
-            x[:,tt+1] = A @ x[:,tt] + B @ u[:,tt] + LQ @ np.random.randn(self._Dx)
-            y[:,tt+1] = C @ x[:,tt+1] + D @ u[:,tt+1] + LR @ np.random.randn(self._Dy)
-        
+            x[:, tt + 1] = A @ x[:, tt] + B @ u[:, tt] + LQ @ np.random.randn(self._Dx)
+            y[:, tt + 1] = (
+                C @ x[:, tt + 1] + D @ u[:, tt + 1] + LR @ np.random.randn(self._Dy)
+            )
+
         return x, y
