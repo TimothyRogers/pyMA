@@ -1,8 +1,7 @@
-from types import NoneType
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Generic, Optional, Tuple, Union, Callable, TypeVar
 import numpy as np
 
-from pyma.systems import DynamicSystem
+T = TypeVar('T')
 
 """
 Utilities
@@ -40,7 +39,7 @@ Decorators
 """
 
 
-def num_to_np(func: function):
+def num_to_np(func: Callable):
     # Decorator that makes all number inputs 2D arrays
     def wrapper(*args: Any, **kwargs: Any):
         args = list(args)
@@ -56,7 +55,7 @@ def num_to_np(func: function):
     return wrapper
 
 
-def is_square(func: function):
+def is_square(func: Callable):
     def wrapper(*args: Optional[np.ndarray], **kwargs: Any):
         if args[1] is None or (
             len(args[1].shape) == 2 and args[1].shape[0] == args[1].shape[1]
@@ -80,9 +79,9 @@ def is_symmetric(func):
 
 def verify_dims(*dargs: Union[int, str]):
     # Makes sure matrices get set at the right dimensions
-    def wrapper(func: function):
+    def wrapper(func: Callable):
         def wrapped_func(
-            *args: Tuple[DynamicSystem, Union[int, np.ndarray, None]], **kwargs: Any
+            *args: Tuple[T, Union[int, np.ndarray, None]], **kwargs: Any
         ):
 
             # Dynamically get dims if strings
@@ -128,7 +127,7 @@ def verify_dims(*dargs: Union[int, str]):
     return wrapper
 
 
-def is_positive_definite(func: function):
+def is_positive_definite(func: Callable):
     def wrapper(*args: Any, **kwargs: Any):
         if args[1] is None or np.all(np.linalg.eigvals(args[1]) > 0):
             return func(*args, **kwargs)
@@ -138,7 +137,7 @@ def is_positive_definite(func: function):
     return wrapper
 
 
-def valid_system_matrix(func: function):
+def valid_system_matrix(func: Callable):
     @is_square
     @is_symmetric
     @is_positive_definite

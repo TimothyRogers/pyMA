@@ -2,7 +2,7 @@
 Representations of Dynamic Systems
 """
 
-from typing import Union
+from typing import Union, Tuple
 from pyma import utils
 import numpy as np
 from numpy.linalg import eig, inv
@@ -31,13 +31,18 @@ class DynamicSystem:
         w: np.ndarray = None,
         J: Union[int, list, np.ndarray] = -1,
         K: Union[int, list, np.ndarray] = -1,
-    ):
-        """
-        Compute complex receptance FRF
+    ) -> np.ndarray:
+        """Compute complex receptance FRF
 
-        Response at k due to excitation at j: -1 implies all
-        Frequencies specified in w
 
+        Args:
+            w (np.ndarray, optional): range of frequencys over which to compute the FRF,
+                                      if unspecified up to 1.2*max(wn). Defaults to None.
+            J (Union[int, list, np.ndarray], optional): Reponse location(s). Input -1 for all dofs. Defaults to -1.
+            K (Union[int, list, np.ndarray], optional): Loading location(s). Input -1 for all dofs. Defaults to -1.
+
+        Returns:
+            np.ndarray: Returns [J,K,N] array where N is the number of frequency lines
         """
 
         if J == -1:
@@ -63,7 +68,17 @@ class DynamicSystem:
 
         return FRF
 
-    def _frf(self, jj: int, kk: int, w: np.ndarray):
+    def _frf(self, jj: int, kk: int, w: np.ndarray) -> np.ndarray:
+        """Compute single complex receptance FRF
+
+        Args:
+            jj (int): measurement location
+            kk (int): forcing location
+            w (np.ndarray): frequencies to compute at
+
+        Returns:
+            np.ndarray: Complex receptance FRF as [N,] array where N is number of frequency lines
+        """
 
         frf = np.zeros(len(w), dtype=np.clongdouble)
         for r in range(self.dofs):
@@ -74,6 +89,25 @@ class DynamicSystem:
             frf = frf + rAjk / den
         return frf
 
+class ModalModel(DynamicSystem):
+    """
+    Dynamic System in Modal Coordinates - Omega, Phi
+    """
+
+    def __init__(
+        self, Omega: np.ndarray = None, Phi: np.ndarray = None, Zeta: np.ndarray = None
+    ):
+        """Initialise modal model
+
+        Args:
+            Omega (np.ndarray, optional): Natural frequencies. Defaults to None.
+            Phi (np.ndarray, optional): Mode shapes. Defaults to None.
+            Zeta (np.ndarray, optional): Damping ratios. Defaults to None.
+        """
+
+        self.Omega = Omega
+        self.Phi = Phi
+        self.Zeta = Zeta
 
 class SpatialModel(DynamicSystem):
     """
@@ -83,6 +117,13 @@ class SpatialModel(DynamicSystem):
     def __init__(
         self, M: np.ndarray = None, C: np.ndarray = None, K: np.ndarray = None
     ):
+        """Initialise a spatial dynamic model
+
+        Args:
+            M (np.ndarray, optional): Mass matrix. Defaults to None.
+            C (np.ndarray, optional): Damping (viscous) matrix. Defaults to None.
+            K (np.ndarray, optional): Stiffness matrix. Defaults to None.
+        """
 
         self.dofs = None
         self._M = None
@@ -94,6 +135,12 @@ class SpatialModel(DynamicSystem):
         self.K = K
 
     def dofs_update(self, A: np.ndarray):
+        """Check or update number of degress of freedom
+
+        Args:
+            A (np.ndarray): System matrix, self.dofs square
+        """
+
         if A is not None:
             if self.dofs == None or (A.shape[0] == self.dofs):
                 self.dofs = A.shape[0]
@@ -102,41 +149,70 @@ class SpatialModel(DynamicSystem):
 
     @property
     def M(self):
+        """Mass matrix"""
         return self._M
 
     @M.setter
     @utils.num_to_np
     @utils.valid_system_matrix
-    def M(self, M: np.ndarray):
+    def M(self, M: Union[np.ndarray, float]):
+        """Setter for Mass matrix
+
+        Convert single number input to 2D numpy array and check valid
+
+        Args:
+            M (Union[np.ndarray,float]): Mass matrix
+        """
         self.dofs_update(M)
         self._M = M
         self.update_modal()
 
     @property
     def C(self):
+        """Damping matrix"""
         return self._C
 
     @C.setter
     @utils.num_to_np
     @utils.valid_system_matrix
-    def C(self, C: np.ndarray):
+    def C(self, C: Union[np.ndarray, float]):
+        """Setter for damping matrix
+
+        Convert single number input to 2D numpy array and check valid
+
+        Args:
+            C (Union[np.ndarray,float]): Mass matrix
+        """
         self.dofs_update(C)
         self._C = C
         self.update_modal()
 
     @property
     def K(self):
+        """Stiffnss matrix"""
         return self._K
 
     @K.setter
     @utils.num_to_np
     @utils.valid_system_matrix
-    def K(self, K: np.ndarray):
+    def K(self, K: Union[np.ndarray, float]):
+        """Setter for stiffness matrix
+
+        Convert single number input to 2D numpy array and check valid
+
+        Args:
+            K (Union[np.ndarray,float]): stiffness matrix
+        """
         self.dofs_update(K)
         self._K = K
         self.update_modal()
 
-    def first_order_form(self):
+    def first_order_form(self) -> np.ndarray:
+        """Return system in first order form
+
+        Returns:
+            np.ndarray: First order system matrix [2R,2R] for R DOFs
+        """
         MI = inv(self.M)
         return np.block(
             [
@@ -146,18 +222,27 @@ class SpatialModel(DynamicSystem):
         )
 
     def update_modal(self):
+        """Update Modal Properties
+
+        Compute the modal properties of the system dependent on what matrices are set.
+
+        """
+
         # Compute modal properties
         if self.M is not None and self.K is not None:
             lam_ud, phi = eig(inv(self.M) @ self.K)
             # Orthonormal modes
             Mrr = phi.T @ (self.M @ phi)
             phi = phi / np.diag(Mrr)
+
             if self.C is not None:
+                # If system is damped solve the eigenvalues of the extended matrix
                 lam, _ = eig(self.first_order_form())
                 lam.sort()
                 self.Omega = np.abs(lam[::2])
                 self.Zeta = -np.real(lam[::2]) / self.Omega
             else:
+                # Classic undamped eigenvalue problem
                 self.Omega = np.sqrt(lam_ud)
                 self.Zeta = np.zeros_like(lam_ud)
             self.Phi = phi
@@ -166,27 +251,18 @@ class SpatialModel(DynamicSystem):
             self.Zeta = None
             self.Phi = None
 
-    def as_modal(self):
+    def as_modal(self) -> ModalModel:
+        """Return a Modal Model
+
+        Returns:
+            ModalModel: Current system as modal model
+        """
 
         if self.C is None:
             # Undamped system
             return ModalModel(Omega=self.Omega, Phi=self.Phi)
         else:
             return ModalModel(Omega=self.Omega, Phi=self.Phi, Zeta=self.Zeta)
-
-
-class ModalModel(DynamicSystem):
-    """
-    Dynamic System in Modal Coordinates - Omega, Phi
-    """
-
-    def __init__(
-        self, Omega: np.ndarray = None, Phi: np.ndarray = None, Zeta: np.ndarray = None
-    ):
-
-        self.Omega = Omega
-        self.Phi = Phi
-        self.Zeta = Zeta
 
 
 class StateSpace(DynamicSystem):
@@ -301,13 +377,30 @@ class StateSpace(DynamicSystem):
     def Q(self, Q: np.ndarray):
         self._Q = Q
 
-    def frf(self, w=None, J=None, K=None):
+    def frf(
+        self,
+        w: np.ndarray = None,
+        J: Union[int, list, np.ndarray] = None,
+        K: Union[int, list, np.ndarray] = None,
+    ):
+        """Compute receptance FRF of SSM
+
+        Todo:
+            * Not yet implemented
+
+        Args:
+            w (np.ndarray, optional): vector of frequencies to compute at. Defaults to None.
+            J (Union[int, list, np.ndarray], optional): measurement dof(s). Defaults to None.
+            K (Union[int, list, np.ndarray], optional): forcing dofs(s). Defaults to None.
+
+        Raises:
+            NotImplementedError: _description_
+        """
         # Need to add conversion here
         raise NotImplementedError()
 
     def discretise(self):
-        """
-        Discretise continuous time SSM usins matrix fractions
+        """ Discretise continuous time SSM using matrix fractions
         """
 
         if self.continuous:
@@ -341,16 +434,25 @@ class StateSpace(DynamicSystem):
                 self.A = A
                 self.continuous = False
 
-    def simulate(self, u: np.ndarray = None, T: int = None, x0: np.ndarray = None):
+    def simulate(self, u: np.ndarray = None, T: int = None, x0: np.ndarray = None) -> Tuple[np.ndarray, np.ndarray]:
+        """Simulate response of a dynamic system
+
+        Todo:
+            * input dimension checking
+            * handling unexpected types for u
+
+        Args:
+            u (np.ndarray, optional): input signal time series. Defaults to None.
+            T (int, optional): number of time steps to simulate. Defaults to None.
+            x0 (np.ndarray, optional): initial conditions. Defaults to None.
+
+        Raises:
+            utils.SimulationError: invalid parameters for simulation, e.g. cannot determine length
+            ValueError: invalid input type u
+
+        Returns:
+            _type_: _description_
         """
-        Simulate response of a dynamic system
-
-        u - input signal
-        T - number of time steps
-
-        """
-
-        # TODO: input dimension checking and handling unexpected types for u
 
         T = int(T) if T is not None else T
 
