@@ -8,6 +8,22 @@ Utilities
 """
 
 
+def lq(A: np.ndarray) -> np.ndarray:
+    """LQ Decomposition
+
+    Note:
+        Function returns lower triangular L matrix only not Q
+
+    Args:
+        A (np.ndarray): Matrix to be decomposed
+
+    Returns:
+        np.ndarray: L matrix of A = LQ
+    """
+
+    return np.linalg.qr(A.T, mode="r").T
+
+
 def generate_multisine(freqs: np.ndarray, t: np.ndarray):
     # Generate a random phase multisine of frequencies in freqs
 
