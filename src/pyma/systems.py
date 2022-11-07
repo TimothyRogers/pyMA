@@ -89,6 +89,7 @@ class DynamicSystem:
             frf = frf + rAjk / den
         return frf
 
+
 class ModalModel(DynamicSystem):
     """
     Dynamic System in Modal Coordinates - Omega, Phi
@@ -108,6 +109,7 @@ class ModalModel(DynamicSystem):
         self.Omega = Omega
         self.Phi = Phi
         self.Zeta = Zeta
+
 
 class SpatialModel(DynamicSystem):
     """
@@ -400,8 +402,7 @@ class StateSpace(DynamicSystem):
         raise NotImplementedError()
 
     def discretise(self):
-        """ Discretise continuous time SSM using matrix fractions
-        """
+        """Discretise continuous time SSM using matrix fractions"""
 
         if self.continuous:
 
@@ -434,7 +435,9 @@ class StateSpace(DynamicSystem):
                 self.A = A
                 self.continuous = False
 
-    def simulate(self, u: np.ndarray = None, T: int = None, x0: np.ndarray = None) -> Tuple[np.ndarray, np.ndarray]:
+    def simulate(
+        self, u: np.ndarray = None, T: int = None, x0: np.ndarray = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Simulate response of a dynamic system
 
         Todo:
