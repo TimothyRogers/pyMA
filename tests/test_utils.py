@@ -122,3 +122,12 @@ def test_lq():
     L = utils.lq(A)
 
     assert np.allclose(A @ A.T, L @ L.T)
+
+
+def test_multisine():
+
+    dt = 0.01
+    t = np.arange(0, 10, step=dt)
+    freqs = np.arange(0.1, 10, step=0.1)
+    y = utils.generate_multisine(freqs, t)
+    assert y.shape == t.shape
