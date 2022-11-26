@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, Tuple, Union, Callable, TypeVar
+from typing import Any, Generic, Optional, Tuple, Union, Callable, TypeVar, List
 import numpy as np
 
 T = TypeVar("T")
@@ -155,3 +155,10 @@ Errors
 class SimulationError(Exception):
     def __init__(self, msg: str):
         self.message = msg
+
+
+"""
+Types
+"""
+
+ModalType = Tuple[List[float], List[float], np.ndarray]

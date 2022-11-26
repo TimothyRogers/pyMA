@@ -17,6 +17,8 @@ def default_system():
 @pytest.fixture(scope="session")
 def default_oma(default_system):
 
+    np.random.seed(1)
+
     M, C, K = default_system
 
     MI = np.linalg.inv(M)
@@ -35,6 +37,6 @@ def default_oma(default_system):
     ssm = systems.StateSpace(A=A, C=C, Q=Q, R=R, dt=dt)
     ssm.discretise()
 
-    x, y = ssm.simulate(T=5e3)
+    x, y = ssm.simulate(T=1e4)
 
-    return y[:, 1:], ssm
+    return y[:, 1000:], ssm
