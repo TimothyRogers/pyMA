@@ -23,8 +23,6 @@ def default_oma(default_system):
     model = systems.SpatialModel(M=M, C=C, K=K)
 
     A = model.first_order_form()
-    B = np.block([[np.zeros_like(M)], [np.linalg.inv(M)]])
-
     L = np.flipud(np.eye(4, 2))
     q = np.eye(2)
     Q = L @ (q @ L.T)
@@ -32,8 +30,11 @@ def default_oma(default_system):
 
     dt = 1e-2  # 100Hz sample freq
 
-    ssm = systems.StateSpace(A=A, B=B, Q=Q, R=R, dt=dt)
+    C = np.hstack((np.identity(2), np.zeros((2, 2))))
+
+    ssm = systems.StateSpace(A=A, C=C, Q=Q, R=R, dt=dt)
+    ssm.discretise()
 
     x, y = ssm.simulate(T=5e3)
 
-    return y
+    return y[:, 1:], ssm
