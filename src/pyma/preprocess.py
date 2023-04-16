@@ -3,6 +3,8 @@ Preprocessing tools
 """
 
 import numpy as np
+from scipy.fft import rfftfreq
+from scipy.signal._spectral_py import _fft_helper
 from typing import Optional
 
 
@@ -29,3 +31,46 @@ def block_hankel(X: np.ndarray, order: int, N: Optional[int] = None) -> np.ndarr
         H[o * D : (o + 1) * D, :] = X[:, o : N + o]
 
     return H
+
+
+def pairwise_csd(X: np.ndarray, opts: dict = {}):
+
+    _default_opts = {"fs": 1.0, "window_length": 0.2, "overlap": 0.5}
+
+    opts = _default_opts | opts
+    p, N = X.shape
+
+    nperseg = np.floor(N * opts["window_length"])
+    noverlap = np.floor(nperseg * opts["overlap"])
+    win = np.hanning(nperseg)[None, None, :]  # For now force Hanning window
+
+    # Bit naughty scipy says this is internal only...
+    Y = _fft_helper(
+        X, win, lambda d: d, int(nperseg), int(noverlap), int(nperseg), "onesided"
+    )
+    # Compute pairwise CSD by broadcasting
+    Y = np.mean(np.conjugate(Y[:, None, :, :]) * Y[None, :, :, :], axis=2) / (
+        opts["fs"] * (win**2).sum()
+    )  # Scaling for CSD
+    if nperseg % 2:
+        Y[:, :, 1:] *= 2
+    else:
+        Y[:, :, 1:-1] *= 2
+
+    # Thanks Scipy again
+    freqs = rfftfreq(int(nperseg), 1 / opts["fs"])
+
+    return freqs, Y
+
+
+def svs(X: np.ndarray, opts: dict = {}):
+
+    _default_opts = {"fs": 1.0, "window_length": 0.2, "overlap": 0.5}
+
+    opts = _default_opts | opts
+    p, N = X.shape
+
+    freqs, Y = pairwise_csd(X, opts)
+    U, S, _ = np.linalg.svd(np.moveaxis(Y, -1, 0))  # cycle to broadcast SVD
+
+    return freqs, U.real, S
