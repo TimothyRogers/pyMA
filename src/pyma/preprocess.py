@@ -5,7 +5,7 @@ Preprocessing tools
 import numpy as np
 from scipy.fft import rfftfreq
 from scipy.signal._spectral_py import _fft_helper
-from typing import Optional
+from typing import Optional, Tuple
 
 
 def block_hankel(X: np.ndarray, order: int, N: Optional[int] = None) -> np.ndarray:
@@ -33,7 +33,16 @@ def block_hankel(X: np.ndarray, order: int, N: Optional[int] = None) -> np.ndarr
     return H
 
 
-def pairwise_csd(X: np.ndarray, opts: dict = {}):
+def pairwise_csd(X: np.ndarray, opts: dict = {}) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute Pairwise CSD in Array
+
+    Args:
+        X (np.ndarray): Array of data (p channels, N data)
+        opts (dict, optional): options for the CSD. Defaults to {}.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: frequencys (n,) and pairwise CSD (n, p, p) with n length spectra
+    """
 
     _default_opts = {"fs": 1.0, "window_length": 0.2, "overlap": 0.5}
 
@@ -63,7 +72,16 @@ def pairwise_csd(X: np.ndarray, opts: dict = {}):
     return freqs, Y
 
 
-def svs(X: np.ndarray, opts: dict = {}):
+def svs(X: np.ndarray, opts: dict = {}) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute Singular Value Spectra
+
+    Args:
+        X (np.ndarray): Array of time series data (p channels, N data)
+        opts (dict, optional): options for the SVS. Defaults to {}.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: frequencys (n,), mode shape estimates U (n, p, p) and spectra (n, p)
+    """
 
     _default_opts = {"fs": 1.0, "window_length": 0.2, "overlap": 0.5}
 
